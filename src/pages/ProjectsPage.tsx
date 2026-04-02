@@ -29,7 +29,7 @@ export default function ProjectsPage() {
         <h1 className="text-lg font-black tracking-tight uppercase">Studs</h1>
         <div className="flex items-center gap-4">
           {!apiKey && (
-            <span className="text-xs text-amber-700 bg-amber-100 px-3 py-1 rounded-full font-medium">
+            <span className="text-xs text-amber-700 bg-amber-100 px-3 py-1  font-medium">
               API key not set
             </span>
           )}
@@ -52,12 +52,12 @@ export default function ProjectsPage() {
             value={newName}
             onChange={e => setNewName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            className="flex-1 px-5 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-full text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm transition"
+            className="flex-1 px-5 py-3 bg-[var(--surface)] border border-[var(--border)]  text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm transition"
           />
           <button
             onClick={handleCreate}
             disabled={creating || !newName.trim()}
-            className="px-8 py-3 bg-[var(--accent)] text-[var(--accent-text)] font-bold rounded-full hover:bg-[var(--accent-hover)] transition disabled:opacity-50 text-sm uppercase tracking-wider"
+            className="px-8 py-3 bg-[var(--accent)] text-[var(--accent-text)] font-bold  hover:bg-[var(--accent-hover)] transition disabled:opacity-50 text-sm uppercase tracking-wider"
           >
             {creating ? '...' : 'Create'}
           </button>
@@ -75,7 +75,7 @@ export default function ProjectsPage() {
             {projects.map(p => (
               <div
                 key={p.id}
-                className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-2xl px-6 py-5 cursor-pointer hover:border-[var(--text)] transition group"
+                className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)]  px-6 py-5 cursor-pointer hover:border-[var(--text)] transition group"
                 onClick={() => navigate(`/project/${p.id}`)}
               >
                 <div>

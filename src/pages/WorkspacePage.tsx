@@ -74,16 +74,16 @@ export default function WorkspacePage() {
           <span className="text-[var(--border)]">/</span>
           <h1 className="font-bold">{projectName}</h1>
         </div>
-        <div className="flex items-center gap-1 bg-[var(--surface)] rounded-full p-1">
+        <div className="flex items-center gap-1 bg-[var(--surface)]  p-1">
           <button
             onClick={() => setActiveTab('generate')}
-            className={`px-5 py-1.5 rounded-full text-sm font-semibold transition ${activeTab === 'generate' ? 'bg-white text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)]'}`}
+            className={`px-5 py-1.5  text-sm font-semibold transition ${activeTab === 'generate' ? 'bg-white text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)]'}`}
           >
             Generate
           </button>
           <button
             onClick={() => setActiveTab('library')}
-            className={`px-5 py-1.5 rounded-full text-sm font-semibold transition ${activeTab === 'library' ? 'bg-white text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)]'}`}
+            className={`px-5 py-1.5  text-sm font-semibold transition ${activeTab === 'library' ? 'bg-white text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)]'}`}
           >
             Library {generations.filter(g => g.saved).length > 0 && <span className="ml-1 text-xs opacity-50">({generations.filter(g => g.saved).length})</span>}
           </button>

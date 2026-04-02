@@ -1,9 +1,15 @@
 @import "tailwindcss";
 
+@font-face { font-family: 'Suisse'; src: url('/fonts/SuisseIntl-Light.otf') format('opentype'); font-weight: 300; }
+@font-face { font-family: 'Suisse'; src: url('/fonts/SuisseIntl-Medium.otf') format('opentype'); font-weight: 500; }
+@font-face { font-family: 'Suisse'; src: url('/fonts/SuisseIntl-SemiBold.otf') format('opentype'); font-weight: 600; }
+@font-face { font-family: 'Suisse Mono'; src: url('/fonts/SuisseIntlMono-Regular.otf') format('opentype'); font-weight: 400; }
+@font-face { font-family: 'Suisse Mono'; src: url('/fonts/SuisseIntlMono-Bold.otf') format('opentype'); font-weight: 700; }
+
 :root {
   --bg: #ffffff;
-  --surface: #f7f7f5;
-  --surface2: #eeede9;
+  --surface: #f5f5f0;
+  --surface2: #ededea;
   --border: #e0dfdb;
   --text: #1a1a1a;
   --text-muted: #8a8a86;
@@ -14,7 +20,8 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Suisse', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 300;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;

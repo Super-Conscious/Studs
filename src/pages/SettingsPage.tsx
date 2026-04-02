@@ -27,7 +27,7 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        <section className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 mb-4">
+        <section className="bg-[var(--surface)] border border-[var(--border)]  p-6 mb-4">
           <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-4">Gemini API Key</h2>
           <p className="text-sm text-[var(--text-muted)] mb-4">
             Enter your Google AI Studio API key. Get one at{' '}
@@ -41,24 +41,24 @@ export default function SettingsPage() {
               placeholder="AIza..."
               value={keyInput}
               onChange={e => setKeyInput(e.target.value)}
-              className="flex-1 px-4 py-2.5 bg-white border border-[var(--border)] rounded-full text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm font-mono transition"
+              className="flex-1 px-4 py-2.5 bg-white border border-[var(--border)]  text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm font-mono transition"
             />
             <button
               onClick={handleSave}
               disabled={saving || !keyInput}
-              className="px-6 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] font-bold rounded-full text-sm hover:bg-[var(--accent-hover)] transition disabled:opacity-50 uppercase tracking-wider"
+              className="px-6 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] font-bold  text-sm hover:bg-[var(--accent-hover)] transition disabled:opacity-50 uppercase tracking-wider"
             >
               {saving ? '...' : saved ? 'Saved!' : 'Save'}
             </button>
           </div>
         </section>
 
-        <section className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
+        <section className="bg-[var(--surface)] border border-[var(--border)]  p-6">
           <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-4">Account</h2>
           <p className="text-sm text-[var(--text-muted)] mb-4">{user?.email}</p>
           <button
             onClick={signOut}
-            className="px-5 py-2 border border-red-300 text-red-600 rounded-full text-sm font-medium hover:bg-red-50 transition"
+            className="px-5 py-2 border border-red-300 text-red-600  text-sm font-medium hover:bg-red-50 transition"
           >
             Sign Out
           </button>

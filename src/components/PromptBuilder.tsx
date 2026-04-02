@@ -103,14 +103,14 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
         ].map(({ label, value, onChange, options }) => (
           <div key={label}>
             <label className="text-xs text-[var(--text-muted)] mb-1 block">{label}</label>
-            <select value={value} onChange={e => onChange(e.target.value)} className="w-full px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] outline-none focus:border-[var(--text)] transition">
+            <select value={value} onChange={e => onChange(e.target.value)} className="w-full px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)]  text-sm text-[var(--text)] outline-none focus:border-[var(--text)] transition">
               {options.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
           </div>
         ))}
         <div>
           <label className="text-xs text-[var(--text-muted)] mb-1 block">Camera Angle</label>
-          <select value={angleIdx} onChange={e => setAngleIdx(Number(e.target.value))} className="w-full px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] outline-none focus:border-[var(--text)] transition">
+          <select value={angleIdx} onChange={e => setAngleIdx(Number(e.target.value))} className="w-full px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)]  text-sm text-[var(--text)] outline-none focus:border-[var(--text)] transition">
             {ANGLES.map((a, i) => <option key={i} value={i}>{a.label}</option>)}
           </select>
         </div>
@@ -127,14 +127,14 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
         onChange={e => { setUseCustom(true); setCustomPrompt(e.target.value) }}
         readOnly={!useCustom}
         rows={5}
-        className={`w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] outline-none resize-y leading-relaxed transition ${!useCustom ? 'opacity-60' : 'focus:border-[var(--text)]'}`}
+        className={`w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)]  text-sm text-[var(--text)] outline-none resize-y leading-relaxed transition ${!useCustom ? 'opacity-60' : 'focus:border-[var(--text)]'}`}
       />
 
       <div className="flex items-center gap-4 mt-4">
         <button
           onClick={handleGenerate}
           disabled={!canGenerate || generating}
-          className="px-10 py-3 bg-[var(--accent)] text-[var(--accent-text)] font-bold rounded-full hover:bg-[var(--accent-hover)] transition disabled:opacity-40 text-sm uppercase tracking-wider"
+          className="px-10 py-3 bg-[var(--accent)] text-[var(--accent-text)] font-bold  hover:bg-[var(--accent-hover)] transition disabled:opacity-40 text-sm uppercase tracking-wider"
         >
           {generating ? 'Generating...' : 'Generate'}
         </button>
@@ -142,7 +142,7 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
         {contentImages.length === 0 && <span className="text-xs text-[var(--text-muted)]">Upload content images</span>}
         {referenceImages.length === 0 && <span className="text-xs text-[var(--text-muted)]">Upload reference images</span>}
       </div>
-      {error && <p className="text-red-600 text-sm mt-3 bg-red-50 px-4 py-2 rounded-xl">{error}</p>}
+      {error && <p className="text-red-600 text-sm mt-3 bg-red-50 px-4 py-2 ">{error}</p>}
     </div>
   )
 }

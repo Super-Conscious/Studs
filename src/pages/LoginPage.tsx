@@ -72,7 +72,7 @@ export default function LoginPage() {
             value={email}
             onChange={e => { setEmail(e.target.value); setError('') }}
             required
-            className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-full text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm transition"
+            className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)]  text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm transition"
           />
           <input
             type="password"
@@ -81,19 +81,19 @@ export default function LoginPage() {
             onChange={e => { setPassword(e.target.value); setError('') }}
             required
             minLength={6}
-            className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-full text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm transition"
+            className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)]  text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm transition"
           />
           {isSignUp && password.length > 0 && password.length < 6 && (
             <p className="text-xs text-[var(--text-muted)] ml-4">At least 6 characters</p>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <div className="bg-red-50 border border-red-200  px-4 py-3">
               <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+            <div className="bg-green-50 border border-green-200  px-4 py-3">
               <p className="text-green-700 text-sm">{success}</p>
             </div>
           )}
@@ -101,7 +101,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-[var(--accent)] text-[var(--accent-text)] font-bold rounded-full hover:bg-[var(--accent-hover)] transition disabled:opacity-50 text-sm uppercase tracking-wider"
+            className="w-full py-3 bg-[var(--accent)] text-[var(--accent-text)] font-bold  hover:bg-[var(--accent-hover)] transition disabled:opacity-50 text-sm uppercase tracking-wider"
           >
             {loading ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
