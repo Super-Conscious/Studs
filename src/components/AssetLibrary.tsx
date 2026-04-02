@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import JSZip from 'jszip'
 import type { Generation } from '../types'
 
 interface Props {
@@ -7,13 +9,30 @@ interface Props {
 }
 
 export default function AssetLibrary({ generations, onToggleSave, onDelete }: Props) {
-  const handleDownloadAll = () => {
-    generations.forEach(gen => {
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownloadAll = async () => {
+    if (generations.length === 0) return
+    setDownloading(true)
+    try {
+      const zip = new JSZip()
+      for (let i = 0; i < generations.length; i++) {
+        const res = await fetch(generations[i].image_url)
+        const blob = await res.blob()
+        const ext = blob.type.includes('png') ? 'png' : 'jpg'
+        zip.file(`studs-${i + 1}.${ext}`, blob)
+      }
+      const content = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(content)
       const a = document.createElement('a')
-      a.href = gen.image_url
-      a.download = `studs-${gen.id}.png`
+      a.href = url
+      a.download = `studs-assets-${Date.now()}.zip`
       a.click()
-    })
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('ZIP download failed:', err)
+    }
+    setDownloading(false)
   }
 
   if (generations.length === 0) {
@@ -28,24 +47,32 @@ export default function AssetLibrary({ generations, onToggleSave, onDelete }: Pr
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Saved Assets ({generations.length})
         </h3>
-        <button onClick={handleDownloadAll} className="px-5 py-2 bg-[var(--accent)] text-[var(--accent-text)] font-bold  text-sm hover:bg-[var(--accent-hover)] transition uppercase tracking-wider">
-          Download All
+        <button
+          onClick={handleDownloadAll}
+          disabled={downloading}
+          className="px-5 py-2 bg-[var(--accent)] text-[var(--accent-text)] font-bold text-sm hover:bg-[var(--accent-hover)] transition disabled:opacity-50 uppercase tracking-wider"
+        >
+          {downloading ? 'Zipping...' : 'Download All (.zip)'}
         </button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {generations.map(gen => (
-          <div key={gen.id} className="group relative bg-[var(--surface)] border border-[var(--border)]  overflow-hidden">
+          <div key={gen.id} className="bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
             <img src={gen.image_url} alt="Saved earring" className="w-full aspect-square object-contain bg-neutral-50" />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-end justify-center opacity-0 group-hover:opacity-100">
-              <div className="flex gap-2 p-3">
-                <a href={gen.image_url} download className="px-3 py-1.5 bg-white text-black  text-xs font-bold hover:bg-neutral-100 transition">Download</a>
-                <button onClick={() => onToggleSave(gen)} className="px-3 py-1.5 bg-[var(--accent)] text-[var(--accent-text)]  text-xs font-bold transition">Unsave</button>
-                <button onClick={() => onDelete(gen)} className="px-3 py-1.5 bg-red-500 text-white  text-xs font-bold hover:bg-red-600 transition">Delete</button>
-              </div>
+            <div className="px-3 py-3 flex gap-2">
+              <a href={gen.image_url} download className="px-3 py-1.5 bg-[var(--surface2)] text-[var(--text)] text-xs font-medium hover:bg-[var(--border)] transition">
+                Download
+              </a>
+              <button onClick={() => onToggleSave(gen)} className="px-3 py-1.5 bg-[var(--surface2)] text-[var(--text)] text-xs font-medium hover:bg-[var(--border)] transition">
+                Unsave
+              </button>
+              <button onClick={() => { if (confirm('Delete permanently?')) onDelete(gen) }} className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-red-600 transition ml-auto">
+                Delete
+              </button>
             </div>
           </div>
         ))}

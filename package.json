@@ -12,6 +12,7 @@
   "dependencies": {
     "@google/genai": "^1.48.0",
     "@supabase/supabase-js": "^2.101.1",
+    "jszip": "^3.10.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.2"

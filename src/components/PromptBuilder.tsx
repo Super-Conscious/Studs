@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../lib/supabase'
+import { showToast } from './Toast'
 import type { Upload, Generation } from '../types'
 
 interface Props {
@@ -40,12 +41,22 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
   const cancelledRef = useRef(false)
 
   const autoPrompt = useMemo(
-    () => buildPrompt(metal, stone, bg, ANGLES[angleIdx].value, contentImages.length, referenceImages.length),
+    () => buildPrompt(metal, stone, bg, ANGLES[angleIdx].value, contentImages.length || 1, referenceImages.length || 1),
     [metal, stone, bg, angleIdx, contentImages.length, referenceImages.length]
   )
 
   const activePrompt = useCustom ? customPrompt : autoPrompt
-  const canGenerate = contentImages.length > 0 && referenceImages.length > 0 && apiKey && activePrompt.trim()
+  const ready = contentImages.length > 0 && referenceImages.length > 0
+  const canGenerate = ready && apiKey && activePrompt.trim()
+
+  // Keyboard shortcut: Cmd+Enter to generate
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canGenerate && !generating) handleGenerate()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  })
 
   const handleCancel = () => { cancelledRef.current = true }
 
@@ -58,7 +69,8 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
 
     try {
       const ai = new GoogleGenAI({ apiKey })
-      const imageParts: Array<{ inlineData: { mimeType: string; data: string } } | { text: string }> = []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imageParts: any[] = []
       const allImages = [...contentImages, ...referenceImages]
 
       for (let i = 0; i < allImages.length; i++) {
@@ -66,29 +78,28 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
         setProgress(`Loading image ${i + 1} of ${allImages.length}...`)
         try {
           const res = await fetch(allImages[i].url)
-          if (!res.ok) throw new Error(`Failed to load ${allImages[i].filename}`)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
           const blob = await res.blob()
           const base64 = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader()
             reader.onloadend = () => resolve((reader.result as string).split(',')[1])
-            reader.onerror = () => reject(new Error('Failed to read image'))
+            reader.onerror = () => reject(new Error('Read failed'))
             reader.readAsDataURL(blob)
           })
           imageParts.push({ inlineData: { mimeType: blob.type || 'image/jpeg', data: base64 } })
-        } catch (imgErr: any) {
-          setError(`Failed to load image "${allImages[i].filename}": ${imgErr.message}`)
-          setGenerating(false)
-          setProgress('')
-          return
+        } catch (imgErr: unknown) {
+          const msg = imgErr instanceof Error ? imgErr.message : 'Unknown error'
+          setError(`Failed to load "${allImages[i].filename}": ${msg}`)
+          setGenerating(false); setProgress(''); return
         }
       }
 
       if (cancelledRef.current) { setGenerating(false); setProgress(''); return }
-      setProgress('Generating mockup...')
+      setProgress('Generating mockup — this takes 30-60 seconds...')
       imageParts.push({ text: activePrompt })
 
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Generation timed out after 90 seconds. Try again.')), TIMEOUT_MS)
+        setTimeout(() => reject(new Error('Generation timed out. Try fewer images or a simpler prompt, then retry.')), TIMEOUT_MS)
       )
 
       const genPromise = ai.models.generateContent({
@@ -98,22 +109,19 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
       })
 
       const response = await Promise.race([genPromise, timeoutPromise])
-
       if (cancelledRef.current) { setGenerating(false); setProgress(''); return }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parts: any[] = response.candidates?.[0]?.content?.parts || []
-      const imgPart = parts.find((p: any) =>
-        p.inlineData?.mimeType?.startsWith('image/')
-      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
 
       if (!imgPart?.inlineData) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const textPart = parts.find((p: any) => typeof p.text === 'string')
-        const hint = textPart ? ` Response: ${String(textPart.text).substring(0, 200)}` : ''
-        setError('No image in response. Try adjusting the prompt.' + hint)
-        setGenerating(false)
-        setProgress('')
-        return
+        const hint = textPart ? ` Model said: "${String(textPart.text).substring(0, 200)}"` : ''
+        setError('No image generated. Try adjusting the prompt or using different reference images.' + hint)
+        setGenerating(false); setProgress(''); return
       }
 
       setProgress('Saving result...')
@@ -123,23 +131,22 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
       const bytes = Uint8Array.from(atob(inlineData.data), c => c.charCodeAt(0))
 
       const { error: uploadErr } = await supabase.storage.from('generations').upload(path, bytes, { contentType: inlineData.mimeType })
-      if (uploadErr) { setError('Failed to save image: ' + uploadErr.message); setGenerating(false); setProgress(''); return }
+      if (uploadErr) { setError('Failed to save: ' + uploadErr.message); setGenerating(false); setProgress(''); return }
 
       const { data: { publicUrl } } = supabase.storage.from('generations').getPublicUrl(path)
       const { data: gen, error: dbErr } = await supabase
         .from('generations')
         .insert({ project_id: projectId, prompt: activePrompt, image_url: publicUrl, saved: false })
-        .select()
-        .single()
+        .select().single()
 
-      if (dbErr || !gen) setError('Failed to save record: ' + (dbErr?.message || 'Unknown error'))
-      else onGenerated(gen as Generation)
+      if (dbErr || !gen) setError('Failed to save: ' + (dbErr?.message || 'Unknown'))
+      else { onGenerated(gen as Generation); showToast('Image generated') }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Generation failed'
       if (msg.includes('quota') || msg.includes('429')) {
-        setError('API quota exceeded. Check your billing at console.cloud.google.com or wait a minute and retry.')
-      } else if (msg.includes('API key')) {
-        setError('Invalid API key. Check your key in Settings.')
+        setError('API quota exceeded. Check billing at console.cloud.google.com or wait a minute.')
+      } else if (msg.includes('API key') || msg.includes('403')) {
+        setError('Invalid API key. Update it in Settings.')
       } else {
         setError(msg)
       }
@@ -148,53 +155,76 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
     setProgress('')
   }
 
+  // Empty state — prompt user to upload images first
+  if (!ready) {
+    return (
+      <div className="border-2 border-dashed border-[var(--border)] p-10 text-center">
+        <p className="text-[var(--text)] font-medium mb-2">Upload images to get started</p>
+        <p className="text-sm text-[var(--text-muted)]">
+          Add earring photos on the left as <strong>Earring Photos</strong>, then add style targets as <strong>Style References</strong>.
+        </p>
+        {!apiKey && (
+          <p className="text-sm text-amber-700 mt-3">
+            You also need to <a href="/settings" className="underline font-medium">set your API key</a> in Settings.
+          </p>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div>
-      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-4">Prompt</h3>
+      <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)] mb-4">Image Parameters</h3>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-2 gap-3 mb-6">
         {[
           { label: 'Metal', value: metal, onChange: setMetal, options: METALS },
           { label: 'Stone Type', value: stone, onChange: setStone, options: STONES },
           { label: 'Background', value: bg, onChange: setBg, options: BACKGROUNDS },
         ].map(({ label, value, onChange, options }) => (
           <div key={label}>
-            <label className="text-xs text-[var(--text-muted)] mb-1 block">{label}</label>
+            <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">{label}</label>
             <select value={value} onChange={e => onChange(e.target.value)} className="w-full px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] outline-none focus:border-[var(--text)] transition">
               {options.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
           </div>
         ))}
         <div>
-          <label className="text-xs text-[var(--text-muted)] mb-1 block">Camera Angle</label>
+          <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Camera Angle</label>
           <select value={angleIdx} onChange={e => setAngleIdx(Number(e.target.value))} className="w-full px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] outline-none focus:border-[var(--text)] transition">
             {ANGLES.map((a, i) => <option key={i} value={i}>{a.label}</option>)}
           </select>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-2">
-        <label className="text-xs text-[var(--text-muted)]">Prompt preview</label>
-        <button onClick={() => { setUseCustom(!useCustom); if (!useCustom) setCustomPrompt(autoPrompt) }} className="text-xs text-[var(--text)] font-medium hover:underline">
-          {useCustom ? 'Use template' : 'Edit manually'}
-        </button>
+      <div className="border-t border-[var(--border)] pt-4 mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Prompt</label>
+          <button
+            onClick={() => { setUseCustom(!useCustom); if (!useCustom) setCustomPrompt(autoPrompt) }}
+            className="text-xs font-medium text-[var(--text)] hover:underline flex items-center gap-1"
+          >
+            {useCustom ? 'Reset to template' : 'Edit prompt'}
+          </button>
+        </div>
       </div>
       <textarea
         value={activePrompt}
         onChange={e => { setUseCustom(true); setCustomPrompt(e.target.value) }}
         readOnly={!useCustom}
         rows={5}
-        className={`w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] outline-none resize-y leading-relaxed transition ${!useCustom ? 'opacity-60' : 'focus:border-[var(--text)]'}`}
+        className={`w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] outline-none resize-y leading-relaxed transition ${!useCustom ? 'opacity-70 cursor-default' : 'focus:border-[var(--text)]'}`}
       />
 
       <div className="flex items-center gap-4 mt-4">
         {generating ? (
-          <>
-            <button onClick={handleCancel} className="px-10 py-3 bg-red-100 text-red-700 font-bold hover:bg-red-200 transition text-sm uppercase tracking-wider">
+          <div className="flex items-center gap-4 w-full bg-[var(--surface)] border border-[var(--border)] px-5 py-4">
+            <div className="w-5 h-5 border-2 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin shrink-0" />
+            <span className="text-sm text-[var(--text)] flex-1">{progress}</span>
+            <button onClick={handleCancel} className="px-4 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 transition">
               Cancel
             </button>
-            <span className="text-sm text-[var(--text-muted)]">{progress}</span>
-          </>
+          </div>
         ) : (
           <>
             <button
@@ -204,13 +234,16 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
             >
               Generate
             </button>
-            {!apiKey && <span className="text-xs text-amber-700">Set your API key in Settings</span>}
-            {contentImages.length === 0 && <span className="text-xs text-[var(--text-muted)]">Upload content images</span>}
-            {referenceImages.length === 0 && <span className="text-xs text-[var(--text-muted)]">Upload reference images</span>}
+            <span className="text-[11px] text-[var(--text-muted)]">Cmd+Enter</span>
           </>
         )}
       </div>
-      {error && <p className="text-red-600 text-sm mt-3 bg-red-50 border border-red-200 px-4 py-3">{error}</p>}
+      {error && (
+        <div className="mt-3 bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2">
+          <span className="text-red-600 text-sm flex-1">{error}</span>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-sm shrink-0">x</button>
+        </div>
+      )}
     </div>
   )
 }

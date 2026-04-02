@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useApiKey } from '../hooks/useApiKey'
 import { useNavigate } from 'react-router-dom'
@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [status, setStatus] = useState<'idle' | 'validating' | 'saved' | 'error'>('idle')
   const [error, setError] = useState('')
 
+  useEffect(() => { document.title = 'Studs — Settings' }, [])
   if (apiKey && !keyInput) setKeyInput(apiKey)
 
   const handleSave = async () => {

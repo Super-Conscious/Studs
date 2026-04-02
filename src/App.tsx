@@ -4,10 +4,11 @@ import LoginPage from './pages/LoginPage'
 import ProjectsPage from './pages/ProjectsPage'
 import WorkspacePage from './pages/WorkspacePage'
 import SettingsPage from './pages/SettingsPage'
+import Toast from './components/Toast'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
-  if (loading) return <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center text-[var(--text-muted)]">Loading...</div>
+  if (loading) return <div className="min-h-screen bg-white flex items-center justify-center text-[var(--text-muted)]">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
   return <>{children}</>
 }
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/project/:id" element={<ProtectedRoute><WorkspacePage /></ProtectedRoute>} />
       </Routes>
+      <Toast />
     </BrowserRouter>
   )
 }

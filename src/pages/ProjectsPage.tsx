@@ -14,7 +14,7 @@ export default function ProjectsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
 
-  useEffect(() => { loadProjects() }, [loadProjects])
+  useEffect(() => { document.title = 'Studs — Projects'; loadProjects() }, [loadProjects])
 
   const handleCreate = async () => {
     if (!newName.trim()) return
