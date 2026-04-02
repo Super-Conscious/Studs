@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../lib/supabase'
-
 import type { Upload, Generation } from '../types'
 
 interface Props {
@@ -49,13 +48,9 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
     if (!canGenerate) return
     setGenerating(true)
     setError('')
-
     try {
       const ai = new GoogleGenAI({ apiKey })
-
-      // Build image parts — content first, then reference
       const imageParts: Array<{ inlineData: { mimeType: string; data: string } } | { text: string }> = []
-
       for (const img of [...contentImages, ...referenceImages]) {
         const res = await fetch(img.url)
         const blob = await res.blob()
@@ -66,102 +61,64 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
         })
         imageParts.push({ inlineData: { mimeType: blob.type || 'image/jpeg', data: base64 } })
       }
-
       imageParts.push({ text: activePrompt })
-
       const response = await ai.models.generateContent({
         model: 'gemini-2.0-flash-exp',
         contents: [{ role: 'user', parts: imageParts }],
         config: { responseModalities: ['TEXT', 'IMAGE'] },
       })
-
-      // Extract image from response
       const parts = response.candidates?.[0]?.content?.parts || []
       const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-
       if (!imgPart || !('inlineData' in imgPart)) {
         setError('No image in response. Try adjusting the prompt.')
         setGenerating(false)
         return
       }
-
-      // Upload generated image to Supabase Storage
       const imageData = (imgPart as any).inlineData.data
       const mimeType = (imgPart as any).inlineData.mimeType
       const ext = mimeType.includes('png') ? 'png' : 'jpg'
       const path = `${projectId}/generated/${Date.now()}.${ext}`
-
       const bytes = Uint8Array.from(atob(imageData), c => c.charCodeAt(0))
-      const { error: uploadErr } = await supabase.storage
-        .from('generations')
-        .upload(path, bytes, { contentType: mimeType })
-
-      if (uploadErr) {
-        setError('Failed to save image: ' + uploadErr.message)
-        setGenerating(false)
-        return
-      }
-
+      const { error: uploadErr } = await supabase.storage.from('generations').upload(path, bytes, { contentType: mimeType })
+      if (uploadErr) { setError('Failed to save image: ' + uploadErr.message); setGenerating(false); return }
       const { data: { publicUrl } } = supabase.storage.from('generations').getPublicUrl(path)
-
-      // Save generation record
-      const { data: gen, error: dbErr } = await supabase
-        .from('generations')
-        .insert({ project_id: projectId, prompt: activePrompt, image_url: publicUrl, saved: false })
-        .select()
-        .single()
-
-      if (dbErr || !gen) {
-        setError('Failed to save record')
-      } else {
-        onGenerated(gen as Generation)
-      }
+      const { data: gen, error: dbErr } = await supabase.from('generations').insert({ project_id: projectId, prompt: activePrompt, image_url: publicUrl, saved: false }).select().single()
+      if (dbErr || !gen) setError('Failed to save record')
+      else onGenerated(gen as Generation)
     } catch (err: any) {
       setError(err.message || 'Generation failed')
     }
-
     setGenerating(false)
   }
 
   return (
     <div>
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-4">Prompt</h3>
+      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-4">Prompt</h3>
 
-      {/* Template controls */}
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <label className="text-xs text-[var(--text-muted)] mb-1 block">Metal</label>
-          <select value={metal} onChange={e => setMetal(e.target.value)} className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] outline-none">
-            {METALS.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-[var(--text-muted)] mb-1 block">Stone Type</label>
-          <select value={stone} onChange={e => setStone(e.target.value)} className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] outline-none">
-            {STONES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-[var(--text-muted)] mb-1 block">Background</label>
-          <select value={bg} onChange={e => setBg(e.target.value)} className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] outline-none">
-            {BACKGROUNDS.map(b => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
+        {[
+          { label: 'Metal', value: metal, onChange: setMetal, options: METALS },
+          { label: 'Stone Type', value: stone, onChange: setStone, options: STONES },
+          { label: 'Background', value: bg, onChange: setBg, options: BACKGROUNDS },
+        ].map(({ label, value, onChange, options }) => (
+          <div key={label}>
+            <label className="text-xs text-[var(--text-muted)] mb-1 block">{label}</label>
+            <select value={value} onChange={e => onChange(e.target.value)} className="w-full px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] outline-none focus:border-[var(--text)] transition">
+              {options.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+        ))}
         <div>
           <label className="text-xs text-[var(--text-muted)] mb-1 block">Camera Angle</label>
-          <select value={angleIdx} onChange={e => setAngleIdx(Number(e.target.value))} className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] outline-none">
+          <select value={angleIdx} onChange={e => setAngleIdx(Number(e.target.value))} className="w-full px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] outline-none focus:border-[var(--text)] transition">
             {ANGLES.map((a, i) => <option key={i} value={i}>{a.label}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Prompt text */}
       <div className="flex items-center gap-2 mb-2">
         <label className="text-xs text-[var(--text-muted)]">Prompt preview</label>
-        <button
-          onClick={() => { setUseCustom(!useCustom); if (!useCustom) setCustomPrompt(autoPrompt) }}
-          className="text-xs text-[var(--accent)] hover:underline"
-        >
+        <button onClick={() => { setUseCustom(!useCustom); if (!useCustom) setCustomPrompt(autoPrompt) }} className="text-xs text-[var(--text)] font-medium hover:underline">
           {useCustom ? 'Use template' : 'Edit manually'}
         </button>
       </div>
@@ -169,24 +126,23 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
         value={activePrompt}
         onChange={e => { setUseCustom(true); setCustomPrompt(e.target.value) }}
         readOnly={!useCustom}
-        rows={6}
-        className={`w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] outline-none resize-y font-mono leading-relaxed ${!useCustom ? 'opacity-70' : 'focus:border-[var(--accent)]'}`}
+        rows={5}
+        className={`w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] outline-none resize-y leading-relaxed transition ${!useCustom ? 'opacity-60' : 'focus:border-[var(--text)]'}`}
       />
 
-      {/* Generate */}
       <div className="flex items-center gap-4 mt-4">
         <button
           onClick={handleGenerate}
           disabled={!canGenerate || generating}
-          className="px-8 py-3 bg-[var(--accent)] text-[var(--bg)] font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-40"
+          className="px-10 py-3 bg-[var(--accent)] text-[var(--accent-text)] font-bold rounded-full hover:bg-[var(--accent-hover)] transition disabled:opacity-40 text-sm uppercase tracking-wider"
         >
           {generating ? 'Generating...' : 'Generate'}
         </button>
-        {!apiKey && <span className="text-xs text-amber-400">Set your Gemini API key in Settings first</span>}
+        {!apiKey && <span className="text-xs text-amber-700">Set your API key in Settings</span>}
         {contentImages.length === 0 && <span className="text-xs text-[var(--text-muted)]">Upload content images</span>}
         {referenceImages.length === 0 && <span className="text-xs text-[var(--text-muted)]">Upload reference images</span>}
       </div>
-      {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+      {error && <p className="text-red-600 text-sm mt-3 bg-red-50 px-4 py-2 rounded-xl">{error}</p>}
     </div>
   )
 }
