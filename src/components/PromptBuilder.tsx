@@ -63,7 +63,7 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
       }
       imageParts.push({ text: activePrompt })
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-preview-image-generation',
+        model: 'gemini-2.5-flash-image',
         contents: [{ role: 'user', parts: imageParts }],
         config: { responseModalities: ['TEXT', 'IMAGE'] },
       })
