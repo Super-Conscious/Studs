@@ -18,12 +18,13 @@ export default function SettingsPage() {
   const { user, signOut } = useAuth()
   const { apiKey, saveApiKey, saving } = useApiKey(user)
   const navigate = useNavigate()
-  const [keyInput, setKeyInput] = useState(apiKey)
+  const [keyInput, setKeyInput] = useState('')
+  const [showKey, setShowKey] = useState(false)
   const [status, setStatus] = useState<'idle' | 'validating' | 'saved' | 'error'>('idle')
   const [error, setError] = useState('')
 
   useEffect(() => { document.title = 'Studs — Settings' }, [])
-  if (apiKey && !keyInput) setKeyInput(apiKey)
+  useEffect(() => { if (apiKey) setKeyInput(apiKey) }, [apiKey])
 
   const handleSave = async () => {
     setStatus('validating')
@@ -62,14 +63,26 @@ export default function SettingsPage() {
               aistudio.google.com
             </a>
           </p>
+          {apiKey && status !== 'saved' && (
+            <p className="text-xs text-[var(--text-muted)] mb-3">A key is currently saved. Enter a new one to replace it.</p>
+          )}
           <div className="flex gap-3">
-            <input
-              type="password"
-              placeholder="AIza..."
-              value={keyInput}
-              onChange={e => { setKeyInput(e.target.value); setStatus('idle'); setError('') }}
-              className="flex-1 px-4 py-2.5 bg-white border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm font-mono transition"
-            />
+            <div className="flex-1 relative">
+              <input
+                type={showKey ? 'text' : 'password'}
+                placeholder="AIza..."
+                value={keyInput}
+                onChange={e => { setKeyInput(e.target.value); setStatus('idle'); setError('') }}
+                className="w-full px-4 py-2.5 pr-16 bg-white border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--text)] text-sm font-mono transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition"
+              >
+                {showKey ? 'Hide' : 'Show'}
+              </button>
+            </div>
             <button
               onClick={handleSave}
               disabled={saving || status === 'validating' || !keyInput}

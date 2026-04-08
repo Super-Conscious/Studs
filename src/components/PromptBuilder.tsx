@@ -35,6 +35,7 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
   const [angleIdx, setAngleIdx] = useState(0)
   const [customPrompt, setCustomPrompt] = useState('')
   const [useCustom, setUseCustom] = useState(false)
+  const [angleLocked, setAngleLocked] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
@@ -131,7 +132,7 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
       const bytes = Uint8Array.from(atob(inlineData.data), c => c.charCodeAt(0))
 
       const { error: uploadErr } = await supabase.storage.from('generations').upload(path, bytes, { contentType: inlineData.mimeType })
-      if (uploadErr) { setError('Failed to save: ' + uploadErr.message); setGenerating(false); setProgress(''); return }
+      if (uploadErr) { setError('Failed to save image: ' + uploadErr.message); setGenerating(false); setProgress(''); return }
 
       const { data: { publicUrl } } = supabase.storage.from('generations').getPublicUrl(path)
       const { data: gen, error: dbErr } = await supabase
@@ -190,8 +191,17 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
           </div>
         ))}
         <div>
-          <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Camera Angle</label>
-          <select value={angleIdx} onChange={e => setAngleIdx(Number(e.target.value))} className="w-full px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] outline-none focus:border-[var(--text)] transition">
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-medium text-[var(--text-muted)]">Camera Angle</label>
+            <button
+              onClick={() => setAngleLocked(l => !l)}
+              title={angleLocked ? 'Unlock angle' : 'Lock angle'}
+              className={`text-xs font-medium flex items-center gap-1 transition ${angleLocked ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+            >
+              {angleLocked ? '🔒 Locked' : '🔓 Lock'}
+            </button>
+          </div>
+          <select value={angleIdx} onChange={e => !angleLocked && setAngleIdx(Number(e.target.value))} disabled={angleLocked} className={`w-full px-3 py-2.5 bg-[var(--surface)] border text-sm text-[var(--text)] outline-none transition ${angleLocked ? 'border-[var(--accent)] opacity-80 cursor-not-allowed' : 'border-[var(--border)] focus:border-[var(--text)]'}`}>
             {ANGLES.map((a, i) => <option key={i} value={i}>{a.label}</option>)}
           </select>
         </div>
