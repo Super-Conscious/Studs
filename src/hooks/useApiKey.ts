@@ -1,28 +1,40 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import type { User } from '@supabase/supabase-js'
 
-const META_KEY = 'gemini_api_key'
+// Single shared Gemini API key for the Studs workspace. Stored in a
+// one-row app_settings table (id = 1) with RLS allowing any authenticated
+// user to read and update. Internal tool — trusted team, no per-user split.
+const SETTINGS_ROW_ID = 1
 
-export function useApiKey(user: User | null) {
+export function useApiKey() {
   const [apiKey, setApiKey] = useState<string>('')
   const [saving, setSaving] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    if (user?.user_metadata?.[META_KEY]) {
-      setApiKey(user.user_metadata[META_KEY])
-    }
-  }, [user])
+    let cancelled = false
+    supabase
+      .from('app_settings')
+      .select('gemini_api_key')
+      .eq('id', SETTINGS_ROW_ID)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        if (data?.gemini_api_key) setApiKey(data.gemini_api_key)
+        setLoaded(true)
+      })
+    return () => { cancelled = true }
+  }, [])
 
   const saveApiKey = useCallback(async (key: string) => {
     setSaving(true)
-    const { error } = await supabase.auth.updateUser({
-      data: { [META_KEY]: key }
-    })
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ id: SETTINGS_ROW_ID, gemini_api_key: key, updated_at: new Date().toISOString() })
     if (!error) setApiKey(key)
     setSaving(false)
     return error
   }, [])
 
-  return { apiKey, setApiKey, saveApiKey, saving }
+  return { apiKey, setApiKey, saveApiKey, saving, loaded }
 }

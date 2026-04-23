@@ -7,7 +7,7 @@ import { useApiKey } from '../hooks/useApiKey'
 export default function ProjectsPage() {
   const { user, signOut } = useAuth()
   const { projects, loading, loadProjects, createProject, deleteProject, renameProject } = useProjects(user)
-  const { apiKey } = useApiKey(user)
+  const { apiKey } = useApiKey()
   const navigate = useNavigate()
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)

@@ -16,7 +16,7 @@ async function validateApiKey(key: string): Promise<string | null> {
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth()
-  const { apiKey, saveApiKey, saving } = useApiKey(user)
+  const { apiKey, saveApiKey, saving } = useApiKey()
   const navigate = useNavigate()
   const [keyInput, setKeyInput] = useState('')
   const [showKey, setShowKey] = useState(false)

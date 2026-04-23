@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
 import { useApiKey } from '../hooks/useApiKey'
 import { supabase } from '../lib/supabase'
 import UploadPanel from '../components/UploadPanel'
@@ -13,8 +12,7 @@ import type { Upload, Generation } from '../types'
 export default function WorkspacePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const { apiKey } = useApiKey(user)
+  const { apiKey } = useApiKey()
 
   const [projectName, setProjectName] = useState('')
   const [uploads, setUploads] = useState<Upload[]>([])
