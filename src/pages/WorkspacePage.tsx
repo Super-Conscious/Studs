@@ -21,6 +21,7 @@ export default function WorkspacePage() {
   const [generations, setGenerations] = useState<Generation[]>([])
   const [activeTab, setActiveTab] = useState<'generate' | 'library'>('generate')
   const [generating, setGenerating] = useState(false)
+  const [referenceLocked, setReferenceLocked] = useState(false)
 
   // Page title
   useEffect(() => { document.title = projectName ? `Studs — ${projectName}` : 'Studs' }, [projectName])
@@ -51,7 +52,7 @@ export default function WorkspacePage() {
   const handleUploadComplete = () => loadUploads()
 
   const handleDeleteUpload = async (upload: Upload) => {
-    await supabase.storage.from('uploads').remove([upload.storage_path])
+    await supabase.storage.from('Uploads').remove([upload.storage_path])
     await supabase.from('uploads').delete().eq('id', upload.id)
     setUploads(prev => prev.filter(u => u.id !== upload.id))
   }
@@ -122,6 +123,8 @@ export default function WorkspacePage() {
               images={referenceImages}
               onUpload={handleUploadComplete}
               onDelete={handleDeleteUpload}
+              locked={referenceLocked}
+              onToggleLock={() => setReferenceLocked(l => !l)}
             />
           </div>
           <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">

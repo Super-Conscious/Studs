@@ -11,13 +11,15 @@ interface Props {
   images: Upload[]
   onUpload: () => void
   onDelete: (upload: Upload) => void
+  locked?: boolean
+  onToggleLock?: () => void
 }
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_SIZE_MB = 5
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
 
-export default function UploadPanel({ title, hint, tooltip, type, projectId, images, onUpload, onDelete }: Props) {
+export default function UploadPanel({ title, hint, tooltip, type, projectId, images, onUpload, onDelete, locked, onToggleLock }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -51,9 +53,9 @@ export default function UploadPanel({ title, hint, tooltip, type, projectId, ima
     for (const file of validFiles) {
       const ext = file.name.split('.').pop()
       const path = `${projectId}/${type}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { error: uploadErr } = await supabase.storage.from('uploads').upload(path, file)
+      const { error: uploadErr } = await supabase.storage.from('Uploads').upload(path, file)
       if (uploadErr) { setError(`Upload failed: ${uploadErr.message}`); continue }
-      const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(path)
+      const { data: { publicUrl } } = supabase.storage.from('Uploads').getPublicUrl(path)
       const { error: dbErr } = await supabase.from('uploads').insert({ project_id: projectId, type, url: publicUrl, filename: file.name, storage_path: path })
       if (dbErr) setError(`Save failed: ${dbErr.message}`)
     }
@@ -65,6 +67,15 @@ export default function UploadPanel({ title, hint, tooltip, type, projectId, ima
     <div>
       <div className="flex items-center gap-2 mb-1">
         <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">{title}</h3>
+        {onToggleLock && (
+          <button
+            onClick={onToggleLock}
+            title={locked ? 'Unlock' : 'Lock'}
+            className={`text-xs font-medium flex items-center gap-1 transition ml-auto ${locked ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+          >
+            {locked ? '🔒 Locked' : '🔓 Lock'}
+          </button>
+        )}
         {tooltip && (
           <div className="relative">
             <button
@@ -93,30 +104,34 @@ export default function UploadPanel({ title, hint, tooltip, type, projectId, ima
               <span className="absolute top-1 left-1 min-w-[20px] h-5 bg-black/70 text-[10px] text-white flex items-center justify-center font-bold px-1">
                 {idx + 1}
               </span>
-              <button
-                onClick={() => onDelete(img)}
-                className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-[10px] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-              >
-                x
-              </button>
+              {!locked && (
+                <button
+                  onClick={() => onDelete(img)}
+                  className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-[10px] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                >
+                  x
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      <div
-        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
-        onClick={() => inputRef.current?.click()}
-        className={`border-2 border-dashed p-5 text-center cursor-pointer transition ${
-          dragOver ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
-        }`}
-      >
-        <div className="text-sm">{uploading ? 'Uploading...' : 'Drag & drop photos here, or click to browse'}</div>
-        <div className="text-[10px] text-[var(--text-muted)] mt-1 opacity-60">JPEG, PNG, WebP — max {MAX_SIZE_MB}MB each</div>
-        <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.webp" multiple hidden onChange={e => { if (e.target.files) handleFiles(e.target.files); e.target.value = '' }} />
-      </div>
+      {!locked && (
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
+          onClick={() => inputRef.current?.click()}
+          className={`border-2 border-dashed p-5 text-center cursor-pointer transition ${
+            dragOver ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
+          }`}
+        >
+          <div className="text-sm">{uploading ? 'Uploading...' : 'Drag & drop photos here, or click to browse'}</div>
+          <div className="text-[10px] text-[var(--text-muted)] mt-1 opacity-60">JPEG, PNG, WebP — max {MAX_SIZE_MB}MB each</div>
+          <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.webp" multiple hidden onChange={e => { if (e.target.files) handleFiles(e.target.files); e.target.value = '' }} />
+        </div>
+      )}
       {error && (
         <div className="flex items-center justify-between mt-2 text-red-600 text-xs bg-red-50 px-3 py-2">
           <span>{error}</span>

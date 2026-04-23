@@ -12,26 +12,51 @@ interface Props {
   onGenerated: (gen: Generation) => void
 }
 
-const METALS = ['silver', 'gold', 'rose gold', 'platinum']
-const STONES = ['round cut gemstone', 'teardrop gemstone', 'princess cut gemstone', 'emerald cut gemstone', 'oval gemstone', 'marquise gemstone', 'pear gemstone', 'cushion cut gemstone']
-const BACKGROUNDS = ['light grey', 'white', 'light pink', 'cream']
+const MATCH_SOURCE = 'match source'
+const METALS = [MATCH_SOURCE, 'silver', 'gold', 'rose gold', 'platinum']
+const STONES = [MATCH_SOURCE, 'round cut gemstone', 'teardrop gemstone', 'princess cut gemstone', 'emerald cut gemstone', 'oval gemstone', 'marquise gemstone', 'pear gemstone', 'cushion cut gemstone']
+const MATCH_REFERENCE = '__match_reference__'
 const ANGLES = [
+  { label: 'Match reference', value: MATCH_REFERENCE },
   { label: 'Straight-on', value: 'straight-on, front-facing orthographic view (no side angle, no perspective tilt). The camera should be positioned directly in front of the objects at eye level, with zero rotation on the X and Y axis' },
   { label: 'Angled', value: 'angled, centered' },
   { label: '3/4 view', value: 'three-quarter angle, slightly elevated' },
 ]
 const TIMEOUT_MS = 90000
 
-function buildPrompt(metal: string, stone: string, bg: string, angle: string, contentCount: number, refCount: number): string {
+function buildPrompt(metal: string, stone: string, angle: string, contentCount: number, refCount: number): string {
   const refDesc = refCount === 1 ? 'the last image' : `the last ${refCount} reference images`
-  return `Take the stud earring from the first ${contentCount} images (${metal}, ${stone}) and recreate it in the exact composition, angle, and layout of ${refDesc}. The earring should be shown in two separated parts (front stud and backing), horizontally aligned and floating against a clean ${bg} background. Match the ${angle}, product photography style with soft shadows beneath each piece.
-Keep the original earring design (${stone.replace('gemstone', 'stone').replace('cut ', 'cut ')} and setting), but render it with the same polished, high-end, minimal aesthetic as the reference. Ensure the circular backing should appear as a full circle (not an ellipse), and the post should extend directly toward the viewer in a straight line, matching the reference layout. The output should be photorealistic, with accurate metallic reflections and gemstone refraction.`
+  const metalMatch = metal === MATCH_SOURCE
+  const stoneMatch = stone === MATCH_SOURCE
+
+  const descriptors: string[] = []
+  if (!metalMatch) descriptors.push(metal)
+  if (!stoneMatch) descriptors.push(stone)
+  const descriptor = descriptors.length ? ` (${descriptors.join(', ')})` : ''
+
+  const preserveNotes: string[] = []
+  if (metalMatch) preserveNotes.push('exact metal color(s) and finish (including any mixed metals between stud and backing)')
+  if (stoneMatch) preserveNotes.push('exact stone shape, cut, color, and setting')
+  const preserveLine = preserveNotes.length
+    ? `Preserve the original ${preserveNotes.join(' and ')} from the source images — do not substitute or normalize.`
+    : ''
+
+  const stoneNote = stoneMatch
+    ? 'Keep the original earring design and setting'
+    : `Keep the original earring design (${stone.replace('gemstone', 'stone')} and setting)`
+
+  const angleMatch = angle === MATCH_REFERENCE
+  const styleLine = angleMatch
+    ? 'Use the same camera angle and composition as the reference — do not reinterpret. Match the reference\'s product photography style.'
+    : `Match the ${angle}, product photography style.`
+
+  return `Take the stud earring from the first ${contentCount} images${descriptor} and recreate it in the exact composition, angle, and layout of ${refDesc}. The earring should be shown in two separated parts (front stud and backing), horizontally aligned and floating against a pure white background: seamless solid #FFFFFF, high-key e-commerce style, fully blown out. The background must NOT be gray, light gray, off-white, ivory, cream, beige, or tinted — it must read as true paper-white, as if cut out for an online store. No vignette, no gradient, no texture. Do NOT render any shadow of any kind — no drop shadow, no contact shadow, no cast shadow, no ambient occlusion beneath the pieces. Do NOT render any floor/surface reflection or mirrored reflection. The pieces should appear perfectly cut out, floating on clean white with zero trace of shadow or reflection (as if background-removed for an e-commerce product listing). ${styleLine}
+${preserveLine ? preserveLine + '\n' : ''}${stoneNote}, but render it with the same polished, high-end, minimal aesthetic as the reference. Ensure the circular backing should appear as a full circle (not an ellipse), and the post should extend directly toward the viewer in a straight line, matching the reference layout. The output should be photorealistic, with accurate metallic reflections and gemstone refraction.`
 }
 
 export default function PromptBuilder({ contentImages, referenceImages, apiKey, projectId, onGenerated }: Props) {
-  const [metal, setMetal] = useState('silver')
+  const [metal, setMetal] = useState(MATCH_SOURCE)
   const [stone, setStone] = useState('round cut gemstone')
-  const [bg, setBg] = useState('light grey')
   const [angleIdx, setAngleIdx] = useState(0)
   const [customPrompt, setCustomPrompt] = useState('')
   const [useCustom, setUseCustom] = useState(false)
@@ -42,13 +67,14 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
   const cancelledRef = useRef(false)
 
   const autoPrompt = useMemo(
-    () => buildPrompt(metal, stone, bg, ANGLES[angleIdx].value, contentImages.length || 1, referenceImages.length || 1),
-    [metal, stone, bg, angleIdx, contentImages.length, referenceImages.length]
+    () => buildPrompt(metal, stone, ANGLES[angleIdx].value, contentImages.length || 1, referenceImages.length || 1),
+    [metal, stone, angleIdx, contentImages.length, referenceImages.length]
   )
 
   const activePrompt = useCustom ? customPrompt : autoPrompt
   const ready = contentImages.length > 0 && referenceImages.length > 0
   const canGenerate = ready && apiKey && activePrompt.trim()
+  const tooManyImages = contentImages.length + referenceImages.length > 5 || referenceImages.length > 2
 
   // Keyboard shortcut: Cmd+Enter to generate
   useEffect(() => {
@@ -181,7 +207,6 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
         {[
           { label: 'Metal', value: metal, onChange: setMetal, options: METALS },
           { label: 'Stone Type', value: stone, onChange: setStone, options: STONES },
-          { label: 'Background', value: bg, onChange: setBg, options: BACKGROUNDS },
         ].map(({ label, value, onChange, options }) => (
           <div key={label}>
             <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">{label}</label>
@@ -225,6 +250,12 @@ export default function PromptBuilder({ contentImages, referenceImages, apiKey, 
         rows={5}
         className={`w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] outline-none resize-y leading-relaxed transition ${!useCustom ? 'opacity-70 cursor-default' : 'focus:border-[var(--text)]'}`}
       />
+
+      {tooManyImages && !generating && (
+        <div className="mt-4 bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-900 leading-relaxed">
+          <strong>Too many images ({contentImages.length + referenceImages.length} total)</strong> — accuracy drops fast past ~5. Aim for <strong>1–2 earring photos</strong> + <strong>1–2 style references</strong>. Extra images dilute the signal and the model averages conflicting angles/lighting.
+        </div>
+      )}
 
       <div className="flex items-center gap-4 mt-4">
         {generating ? (
